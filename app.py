@@ -4,10 +4,10 @@ import base64
 
 st.set_page_config(page_title="Squat Master Pro", layout="wide")
 
-st.title("🏋️‍♂️ Squat Analyzer & Counter")
-st.write("Analyse über MediaPipe (Client-side) – Keine Serverlast, kein OpenCV.")
+st.title("🏋️‍♂️ Squat Analyzer & Tracker")
+st.write("Analyse über MediaPipe – Browser-nativ (Kein OpenCV / libGL benötigt).")
 
-mode = st.radio("Modus:", ["Kamera Live", "Video Upload"], horizontal=True)
+mode = st.radio("Modus wählen:", ["Kamera Live", "Video Upload"], horizontal=True)
 
 video_data_url = ""
 if mode == "Video Upload":
@@ -20,38 +20,50 @@ if mode == "Video Upload":
         st.info("Bitte lade ein Video hoch.")
         st.stop()
 
-# Das Herzstück: HTML5, CSS und die JS-Logik
+# Das HTML/JS Snippet mit dem "Fertig"-Button
 html_code = f"""
-<div id="app-container" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333;">
-    <div id="dashboard" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div style="text-align: center; border-right: 1px solid #ddd;">
-            <span style="font-size: 0.8em; color: #666;">WINKEL</span><br>
-            <strong style="font-size: 1.5em; color: #007bff;"><span id="angle_val">0</span>°</strong>
-        </div>
-        <div style="text-align: center; border-right: 1px solid #ddd;">
-            <span style="font-size: 0.8em; color: #666;">REPS</span><br>
-            <strong style="font-size: 1.5em; color: #28a745;"><span id="rep_count">0</span></strong>
+<div id="app-container" style="font-family: sans-serif; max-width: 900px; margin: auto;">
+    
+    <!-- DASHBOARD -->
+    <div id="dashboard" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #1e1e1e; color: white; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+        <div style="text-align: center;">
+            <span style="font-size: 0.8em; opacity: 0.7;">WINKEL</span><br>
+            <strong style="font-size: 1.5em; color: #00d4ff;"><span id="angle_val">0</span>°</strong>
         </div>
         <div style="text-align: center;">
-            <span style="font-size: 0.8em; color: #666;">STATUS</span><br>
-            <strong id="squat_status" style="font-size: 1.1em;">BEREIT</strong>
+            <span style="font-size: 0.8em; opacity: 0.7;">REPS</span><br>
+            <strong style="font-size: 1.5em; color: #44ff44;"><span id="rep_count">0</span></strong>
+        </div>
+        <div style="text-align: center;">
+            <span style="font-size: 0.8em; opacity: 0.7;">STATUS</span><br>
+            <strong id="squat_status" style="font-size: 1.1em; color: #ffcc00;">BEREIT</strong>
         </div>
     </div>
 
-    <div style="position: relative; display: inline-block; width: 100%;">
+    <!-- VIDEO/CANVAS AREA -->
+    <div style="position: relative; background: #000; border-radius: 10px; overflow: hidden; line-height: 0;">
         <video id="input_video" {"controls" if mode == "Video Upload" else "autoplay playsinline"} 
-               src="{video_data_url}" style="width: 100%; border-radius: 10px; background: #000;"></video>
-        <canvas id="output_canvas" style="position: absolute; top: 0; left: 0; pointer-events: none; width: 100%; height: 100%;"></canvas>
+               src="{video_data_url}" style="width: 100%; height: auto;"></video>
+        <canvas id="output_canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
     </div>
 
-    <div id="summary" style="margin-top: 20px; padding: 20px; background: #e9ecef; border-radius: 10px; display: none;">
-        <h3>📊 Workout Zusammenfassung</h3>
-        <p id="summary_text" style="font-size: 1.2em;"></p>
-        <button onclick="window.location.reload()" style="padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px;">Neustart</button>
+    <!-- CONTROLS -->
+    <div style="margin-top: 15px; display: flex; gap: 10px;">
+        {"<button id='switch_cam' style='flex: 1; padding: 12px; background: #444; color: white; border: none; border-radius: 5px; cursor: pointer;'>Kamera wechseln</button>" if mode == "Kamera Live" else ""}
+        <button id="finish_btn" style="flex: 1; padding: 12px; background: #ff4b4b; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Workout beenden & Auswerten</button>
     </div>
-    
-    {"<button id='switch_cam' style='margin-top: 10px; padding: 10px; width: 100%; cursor: pointer; background: #6c757d; color: white; border: none; border-radius: 5px;'>Kamera wechseln (Front/Back)</button>" if mode == "Kamera Live" else ""}
+
+    <!-- SUMMARY OVERLAY (HIDDEN BY DEFAULT) -->
+    <div id="summary_overlay" style="display:none; margin-top: 20px; padding: 25px; background: #f0f2f6; border-radius: 10px; border-left: 8px solid #ff4b4b; animation: fadeIn 0.5s;">
+        <h2 style="margin-top: 0;">📊 Dein Ergebnis</h2>
+        <div id="summary_content" style="font-size: 1.3em; line-height: 1.6;"></div>
+        <button onclick="window.location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">Neues Training</button>
+    </div>
 </div>
+
+<style>
+@keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
@@ -64,14 +76,14 @@ const canvasCtx = canvasElement.getContext('2d');
 const angleDisplay = document.getElementById('angle_val');
 const repDisplay = document.getElementById('rep_count');
 const statusDisplay = document.getElementById('squat_status');
-const summaryDiv = document.getElementById('summary');
-const summaryText = document.getElementById('summary_text');
+const finishBtn = document.getElementById('finish_btn');
+const summaryOverlay = document.getElementById('summary_overlay');
+const summaryContent = document.getElementById('summary_content');
 
-// Zähler Variablen
 let count = 0;
-let stage = "up"; // "up" oder "down"
-let feedback = "";
-let deepSquats = 0; // Qualitätstracker
+let stage = "up";
+let deepReps = 0;
+let isActive = true;
 
 function findAngle(p1, p2, p3) {{
     let radians = Math.atan2(p3.y - p2.y, p3.x - p2.x) - Math.atan2(p1.y - p2.y, p1.x - p2.x);
@@ -87,6 +99,8 @@ const pose = new Pose({{locateFile: (file) => {{
 pose.setOptions({{ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 }});
 
 pose.onResults((results) => {{
+    if (!isActive) return;
+
     canvasElement.width = videoElement.videoWidth;
     canvasElement.height = videoElement.videoHeight;
     canvasCtx.save();
@@ -103,40 +117,54 @@ pose.onResults((results) => {{
             const angle = findAngle(hip, knee, ankle);
             angleDisplay.innerText = Math.round(angle);
 
-            // Squat Logik
+            // Counter Logik
             if (angle > 160) {{
-                if (stage == "down") {{
+                if (stage === "down") {{
                     count++;
                     repDisplay.innerText = count;
                 }}
                 stage = "up";
                 statusDisplay.innerText = "RUNTER GEHEN";
-                statusDisplay.style.color = "#007bff";
+                statusDisplay.style.color = "#00d4ff";
             }}
             if (angle < 100) {{
-                if (stage == "up") {{
-                    deepSquats++; // Zählt die "guten" Wiederholungen
+                if (stage === "up") {{
+                    deepReps++; 
                 }}
                 stage = "down";
-                statusDisplay.innerText = "TIEFE HALTEN!";
-                statusDisplay.style.color = "#28a745";
+                statusDisplay.innerText = "TIEFE HALTEN";
+                statusDisplay.style.color = "#44ff44";
             }}
         }}
     }}
     canvasCtx.restore();
 }});
 
-// Beenden Funktion
-function showSummary() {{
-    summaryDiv.style.display = "block";
-    const quality = count > 0 ? Math.round((deepSquats / count) * 100) : 0;
-    summaryText.innerHTML = `Du hast <strong>${{count}}</strong> Wiederholungen geschafft.<br>` + 
-                           `Qualität: <strong>${{quality}}%</strong> der Squats waren tief genug.`;
+function finishWorkout() {{
+    isActive = false;
+    summaryOverlay.style.display = "block";
+    const quality = count > 0 ? Math.round((deepReps / count) * 100) : 0;
+    
+    let feedback = quality > 80 ? "🔥 Exzellente Form!" : (quality > 50 ? "👍 Gute Arbeit, versuch noch tiefer zu gehen." : "⚠️ Achte mehr auf die Tiefe deiner Squats.");
+    
+    summaryContent.innerHTML = `
+        Wiederholungen: <strong>${{count}}</strong><br>
+        Gute Form (Tiefe): <strong>${{quality}}%</strong><br><br>
+        <em>${{feedback}}</em>
+    `;
+    
+    // Video/Kamera stoppen
+    if (videoElement.srcObject) {{
+        videoElement.srcObject.getTracks().forEach(track => track.stop());
+    }}
+    videoElement.pause();
+    finishBtn.style.display = "none";
 }}
 
-videoElement.onended = showSummary;
+finishBtn.onclick = finishWorkout;
+videoElement.onended = finishWorkout;
 
-// --- KAMERA / VIDEO KONTROLLE ---
+// --- KAMERA / VIDEO INIT ---
 if ("{mode}" === "Kamera Live") {{
     let currentFacingMode = "user";
     let camera = null;
@@ -144,21 +172,22 @@ if ("{mode}" === "Kamera Live") {{
     async function startCamera(fm) {{
         if (camera) await camera.stop();
         camera = new Camera(videoElement, {{
-            onFrame: async () => {{ await pose.send({{image: videoElement}}); }},
+            onFrame: async () => {{ if(isActive) await pose.send({{image: videoElement}}); }},
             width: 1280, height: 720, facingMode: fm 
         }});
         camera.start();
     }}
     startCamera(currentFacingMode);
     
-    const btn = document.getElementById('switch_cam');
-    if(btn) btn.onclick = () => {{
-        currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
-        startCamera(currentFacingMode);
-    }};
+    if (document.getElementById('switch_cam')) {{
+        document.getElementById('switch_cam').onclick = () => {{
+            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+            startCamera(currentFacingMode);
+        }};
+    }}
 }} else {{
     async function processFrame() {{
-        if (!videoElement.paused && !videoElement.ended) {{
+        if (isActive && !videoElement.paused && !videoElement.ended) {{
             await pose.send({{image: videoElement}});
         }}
         requestAnimationFrame(processFrame);
@@ -168,4 +197,4 @@ if ("{mode}" === "Kamera Live") {{
 </script>
 """
 
-components.html(html_code, height=900)
+components.html(html_code, height=1000)
