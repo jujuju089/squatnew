@@ -1,27 +1,32 @@
+
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Winkel-App (Selbsttrainiert)", layout="wide")
+st.set_page_config(page_title="Winkel-App Fix", layout="wide")
 
-st.title("📐 Selbsttrainierte Winkel-KI")
-st.write("Diese Version nutzt DEINE mathematische Logik (Winkelberechnung).")
+st.title("📐 Winkel-KI (Tablet-Optimiert)")
 
 html_code = """
-<div id="ai-app" style="font-family: sans-serif; background: #1a1a1a; color: white; padding: 20px; border-radius: 20px; max-width: 900px; margin: auto;">
+<div id="ai-container" style="position: relative; font-family: sans-serif; background: #1a1a1a; color: white; border-radius: 20px; overflow: hidden; max-width: 900px; margin: auto;">
     
-    <div style="background: #2d2d2d; padding: 20px; border-radius: 12px; border-bottom: 4px solid #ffaa00; margin-bottom: 20px; text-align: center;">
-        <div id="angle-label" style="font-size: 2em; font-weight: bold; color: #ffaa00;">Winkel: 0°</div>
-        <div id="status-text" style="font-size: 1em; color: #888;">Suche Gelenke...</div>
+    <!-- DASHBOARD (Oben fixiert) -->
+    <div style="position: relative; z-index: 10; background: rgba(45, 45, 45, 0.9); padding: 15px; display: flex; justify-content: space-around; align-items: center; border-bottom: 2px solid #ffaa00;">
+        <div style="text-align: center;">
+            <div id="angle-label" style="font-size: 1.8em; font-weight: bold; color: #ffaa00;">0°</div>
+            <div id="status-text" style="font-size: 0.8em; color: #aaa;">Suche Mensch...</div>
+        </div>
     </div>
 
-    <div style="position: relative; border-radius: 15px; overflow: hidden; background: #000;">
-        <video id="video" autoplay playsinline muted style="width: 100%; height: auto;"></video>
-        <canvas id="canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
-    </div>
-
-    <div style="display: flex; gap: 10px; margin-top: 20px;">
-        <button id="switch-btn" style="flex: 1; padding: 15px; background: #444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">📷 Kamera wechseln</button>
-        <button id="stop-btn" style="flex: 1; padding: 15px; background: #ff4b4b; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">⏹ Stoppen</button>
+    <!-- VIDEO BEREICH -->
+    <div style="position: relative; width: 100%; line-height: 0; background: #000;">
+        <video id="video" autoplay playsinline muted style="width: 100%; height: auto; z-index: 1;"></video>
+        <canvas id="canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none;"></canvas>
+        
+        <!-- BUTTONS (Schweben ÜBER dem Video am unteren Rand) -->
+        <div style="position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 10px; justify-content: center; z-index: 100; padding: 0 10px; box-sizing: border-box;">
+            <button id="switch-btn" style="padding: 12px 20px; background: #444; color: white; border: 2px solid white; border-radius: 10px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">📷 Kamera wechseln</button>
+            <button id="stop-btn" style="padding: 12px 20px; background: #ff4b4b; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">⏹ Stopp</button>
+        </div>
     </div>
 </div>
 
@@ -36,10 +41,9 @@ const angleLabel = document.getElementById('angle-label');
 const statusText = document.getElementById('status-text');
 
 let detector;
-let currentFacingMode = 'environment'; // Startet mit Rückkamera für das Tab S7
+let currentFacingMode = 'environment'; 
 let active = true;
 
-// WINKEL-BERECHNUNG (Deine Logik von gestern)
 function calculateAngle(a, b, c) {
     let radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
     let angle = Math.abs(radians * 180.0 / Math.PI);
@@ -55,7 +59,7 @@ async function startStream() {
         });
         video.srcObject = stream;
         return new Promise(resolve => { video.onloadedmetadata = () => { video.play(); resolve(); }; });
-    } catch (err) { alert("Kamera-Fehler!"); }
+    } catch (err) { console.error(err); }
 }
 
 async function init() {
@@ -77,28 +81,21 @@ async function detect() {
 
         if (poses.length > 0) {
             const kp = poses[0].keypoints;
-            
-            // Punkte für den Kniewinkel: Hüfte(12), Knie(14), Knöchel(16)
             const hip = kp[12], knee = kp[14], ankle = kp[16];
 
             if (hip.score > 0.3 && knee.score > 0.3 && ankle.score > 0.3) {
                 const angle = calculateAngle(hip, knee, ankle);
-                angleLabel.innerText = "Winkel: " + Math.round(angle) + "°";
-                
-                if(angle < 100) statusText.innerText = "SQUAT!";
-                else statusText.innerText = "Stehend";
+                angleLabel.innerText = Math.round(angle) + "°";
+                statusText.innerText = angle < 100 ? "SQUAT!" : "Stehend";
 
-                // Zeichne Linien für den Winkel
                 ctx.strokeStyle = "#ffaa00";
-                ctx.lineWidth = 5;
+                ctx.lineWidth = 6;
                 ctx.beginPath();
                 ctx.moveTo(hip.x, hip.y);
                 ctx.lineTo(knee.x, knee.y);
                 ctx.lineTo(ankle.x, ankle.y);
                 ctx.stroke();
             }
-
-            // Punkte zeichnen
             ctx.fillStyle = "white";
             kp.forEach(p => { if(p.score > 0.3) { ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 2*Math.PI); ctx.fill(); } });
         }
@@ -106,14 +103,14 @@ async function detect() {
     requestAnimationFrame(detect);
 }
 
-document.getElementById('switch-btn').onclick = async () => {
+document.getElementById('switch-btn').onclick = async (e) => {
+    e.preventDefault(); // Verhindert ungewollte Browser-Aktionen
     currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
     await startStream();
 };
 
 document.getElementById('stop-btn').onclick = () => {
     active = false;
-    if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
     video.pause();
 };
 
@@ -121,4 +118,4 @@ init();
 </script>
 """
 
-components.html(html_code, height=900)
+components.html(html_code, height=1000
